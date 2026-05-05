@@ -552,7 +552,7 @@ body.gate-active #sidebar,body.gate-active #main,body.gate-active #hamburger,bod
       <span class="nav-num">14</span><span class="nav-text">The Art of Attachment<span class="nav-link-sub">~20 min · The complete system, closed</span></span><span class="nav-lock-icon">🔒</span>
     </button>
   </div>
-  <a class="sb-cta-link" href="https://ig.me/m/persuasionacademybyra" target="_blank">
+  <a id="sb-cta" class="sb-cta-link" href="https://ig.me/m/persuasionacademybyra" target="_blank">
     Claim your free masterclass access <span class="sb-cta-arrow">→</span>
   </a>
   <div class="sb-footer">
@@ -1280,20 +1280,45 @@ function grantAccess(name) {
   // ── Beta toggle check ──────────────────────────────────────────────────
   const betaSection = document.getElementById('beta-invite-section');
   if (betaSection && SCRIPT_URL && SCRIPT_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
-    fetch(SCRIPT_URL + '?action=get_beta_status')
-      .then(r => r.json())
-      .then(d => {
-        if (d.beta === 'off') {
-          betaSection.innerHTML = [
-            '<div style="text-align:center;padding:52px 32px;">',
-            '<div style="font-family:Barlow,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,149,58,0.55);margin-bottom:18px;">From RA</div>',
-            '<p style="font-size:20px;font-weight:400;font-style:italic;color:var(--text);line-height:1.8;">You finished the Fundamentals.<br>Something bigger is coming. Stay close.</p>',
-            '<p style="font-size:16px;font-weight:400;color:var(--text-muted);margin-top:16px;line-height:1.8;">Follow <strong style="color:var(--gold)">@persuasionacademybyra</strong> on Instagram to be the first to know when the next stage opens.</p>',
-            '</div>'
-          ].join('');
+    // Use JSONP — Apps Script /exec does not support plain fetch (CORS)
+    const _cbName = '__beta_' + Date.now();
+    const _timer  = setTimeout(() => { delete window[_cbName]; }, 10000);
+    window[_cbName] = function(d) {
+      clearTimeout(_timer); delete window[_cbName];
+      const sbCta = document.getElementById('sb-cta');
+      if (d.beta === 'off') {
+        // Sidebar CTA — coming soon state
+        if (sbCta) {
+          sbCta.innerHTML = 'Coming soon <span class="sb-cta-arrow">—</span>';
+          sbCta.removeAttribute('href');
+          sbCta.style.opacity = '0.45';
+          sbCta.style.cursor = 'default';
+          sbCta.style.pointerEvents = 'none';
         }
-      })
-      .catch(() => {});
+        // End of course section
+        betaSection.innerHTML = [
+          '<div style="text-align:center;padding:52px 32px;">',
+          '<div style="font-family:Barlow,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,149,58,0.55);margin-bottom:18px;">From RA</div>',
+          '<p style="font-size:20px;font-weight:400;font-style:italic;color:var(--text);line-height:1.8;">You finished the Fundamentals.<br>Something bigger is coming. Stay close.</p>',
+          '<p style="font-size:16px;font-weight:400;color:var(--text-muted);margin-top:16px;line-height:1.8;">Follow <strong style="color:var(--gold)">@persuasionacademybyra</strong> on Instagram to be the first to know when the next stage opens.</p>',
+          '</div>'
+        ].join('');
+      } else {
+        // beta === 'on' — sidebar CTA active state (restore in case it was off before)
+        if (sbCta) {
+          sbCta.innerHTML = 'Claim your free masterclass access <span class="sb-cta-arrow">→</span>';
+          sbCta.setAttribute('href', 'https://ig.me/m/persuasionacademybyra');
+          sbCta.style.opacity = '';
+          sbCta.style.cursor = '';
+          sbCta.style.pointerEvents = '';
+        }
+        // betaSection stays as-is (original HTML already correct)
+      }
+    };
+    const _s = document.createElement('script');
+    _s.src = SCRIPT_URL + '?action=get_beta_status&callback=' + _cbName;
+    _s.onerror = () => { clearTimeout(_timer); delete window[_cbName]; };
+    document.head.appendChild(_s);
   }
 
   // ── Daily activity ping ────────────────────────────────────────────────
