@@ -976,6 +976,7 @@ body.gate-active #sidebar,body.gate-active #main,body.gate-active #hamburger,bod
       </div>
 
       <!-- ══════════ BETA INVITE, END OF COURSE ══════════ -->
+      <div id="beta-invite-section">
       <div class="upgrade-cta reveal" style="text-align:left;padding:0;background:none;border:none;">
 
         <!-- Top message block -->
@@ -1025,6 +1026,7 @@ body.gate-active #sidebar,body.gate-active #main,body.gate-active #hamburger,bod
         </div>
 
       </div>
+      </div><!-- /beta-invite-section -->
 
     </div><!-- /abundance -->
   </div><!-- /ch-body -->
@@ -1266,7 +1268,6 @@ function setLoading(btnId, arrowId, loading) {
   }
 }
 function grantAccess(name) {
-  // Store session (memory only — clears on reload, requiring re-auth each visit for tracking)
   sessionStorage.setItem('ds_user', name);
   const gate = document.getElementById('auth-gate');
   gate.style.transition = 'opacity 0.5s ease';
@@ -1275,6 +1276,36 @@ function grantAccess(name) {
     gate.classList.add('hidden');
     document.body.classList.remove('gate-active');
   }, 500);
+
+  // ── Beta toggle check ──────────────────────────────────────────────────
+  const betaSection = document.getElementById('beta-invite-section');
+  if (betaSection && SCRIPT_URL && SCRIPT_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+    fetch(SCRIPT_URL + '?action=get_beta_status')
+      .then(r => r.json())
+      .then(d => {
+        if (d.beta === 'off') {
+          betaSection.innerHTML = [
+            '<div style="text-align:center;padding:52px 32px;">',
+            '<div style="font-family:Barlow,sans-serif;font-size:9px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(201,149,58,0.55);margin-bottom:18px;">From RA</div>',
+            '<p style="font-size:20px;font-weight:400;font-style:italic;color:var(--text);line-height:1.8;">You finished the Fundamentals.<br>Something bigger is coming. Stay close.</p>',
+            '<p style="font-size:16px;font-weight:400;color:var(--text-muted);margin-top:16px;line-height:1.8;">Follow <strong style="color:var(--gold)">@persuasionacademybyra</strong> on Instagram to be the first to know when the next stage opens.</p>',
+            '</div>'
+          ].join('');
+        }
+      })
+      .catch(() => {});
+  }
+
+  // ── Daily activity ping ────────────────────────────────────────────────
+  if (SCRIPT_URL && SCRIPT_URL !== 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE') {
+    const storedEmail = sessionStorage.getItem('ds_email') || '';
+    const activePanel = document.querySelector('.sec-panel.active');
+    const chapter = activePanel ? (activePanel.id || 'cover') : 'cover';
+    if (storedEmail) {
+      fetch(SCRIPT_URL + '?action=ping_activity&name=' + encodeURIComponent(name) + '&email=' + encodeURIComponent(storedEmail) + '&chapter=' + encodeURIComponent(chapter))
+        .catch(() => {});
+    }
+  }
 }
 
 // ── Sign Up ────────────────────────────────────────────────────────
@@ -1303,6 +1334,7 @@ async function handleSignUp() {
     const data = await res.json();
     if (data.status === 'success') {
       showMsg('su-msg', '✓ Access granted. Welcome in.', 'success');
+      sessionStorage.setItem('ds_email', email);
       setTimeout(() => grantAccess(name), 900);
     } else if (data.status === 'exists') {
       showMsg('su-msg', 'This email is already registered. Use Sign In to access the course.', 'info');
@@ -1340,6 +1372,7 @@ async function handleSignIn() {
     const data = await res.json();
     if (data.status === 'success') {
       showMsg('si-msg', '✓ Welcome back. Loading your course...', 'success');
+      sessionStorage.setItem('ds_email', email);
       setTimeout(() => grantAccess(name), 900);
     } else if (data.status === 'not_found') {
       showMsg('si-msg', 'We don\'t have a record for that name and email. Please sign up first.', 'error');
